@@ -128,11 +128,23 @@ const resolvers = {
   Query: {
     bookCount: () => books.length,
     authorCount: () => authors.length,
-    allBooks: (root, args) =>
-      books.filter(
-        (book) =>
-          book.author === args.author || book.genres?.includes(args.genre)
-      ),
+    allBooks: (root, args) => {
+      if (!args.author && !args.genre) {
+        return books
+      }
+      if (!args.genre) {
+        return books.filter((book) => book.author === args.author)
+      }
+      if (!args.author) {
+        return books.filter((book) => book.genres.includes(args.genre))
+      }
+      if (args.author && args.genre) {
+        return books.filter(
+          (book) =>
+            book.author === args.author && book.genres.includes(args.genre)
+        )
+      }
+    },
     allAuthors: () => authors,
   },
   Author: {
@@ -158,8 +170,11 @@ const resolvers = {
       if (!author) {
         return null
       }
-      author.born = args.setBornTo
-      return author
+      const updatedAuthor = { ...author, born: args.setBornTo }
+      authors = authors.map((author) =>
+        author.name === args.name ? updatedAuthor : author
+      )
+      return updatedAuthor
     },
   },
 }
