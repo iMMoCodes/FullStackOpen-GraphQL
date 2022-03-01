@@ -55,7 +55,6 @@ const typeDefs = gql`
       author: String!
       genres: [String!]!
     ): Book!
-    addAuthor(name: String!, born: Int): Author!
     editAuthor(name: String!, setBornTo: Int!): Author
     createUser(username: String!, favoriteGenre: String!): User
     login(username: String!, password: String!): Token
@@ -102,29 +101,23 @@ const resolvers = {
   },
   Mutation: {
     addBook: async (root, args, { currentUser }) => {
-      const book = new Book({ ...args })
       if (!currentUser) {
         throw new AuthenticationError('not authenticated')
       }
       try {
+        let author = await Author.findOne({ name: args.author })
+        if (!author) {
+          author = new Author({ name: args.author })
+          await author.save()
+        }
+        const book = new Book({ ...args, author: author._id.toString() })
         await book.save()
+        return book.populate('author')
       } catch (error) {
         throw new UserInputError(error.message, {
           invalidArgs: args,
         })
       }
-      return book
-    },
-    addAuthor: async (root, args) => {
-      const author = new Author({ ...args })
-      try {
-        await author.save()
-      } catch (error) {
-        throw new UserInputError(error.message, {
-          invalidArgs: args,
-        })
-      }
-      return author
     },
     editAuthor: async (root, args, { currentUser }) => {
       const author = await Author.findOne({ name: args.name })
