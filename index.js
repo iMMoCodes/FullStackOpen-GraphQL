@@ -56,33 +56,28 @@ const resolvers = {
     bookCount: async () => Book.collection.countDocuments(),
     authorCount: async () => Author.collection.countDocuments(),
     allBooks: async (root, args) => {
-      return Book.find({})
+      if (!args.author && !args.genre) {
+        return Book.find({})
+      }
+      if (!args.genre) {
+        return Book.find({ author: args.author })
+      }
+      if (!args.author) {
+        return Book.find({ genres: { $in: [args.genre] } })
+      }
+      if (args.author && args.genre) {
+        return Book.find({ author: args.author, genres: { $in: [args.genre] } })
+      }
     },
-    // allBooks: (root, args) => {
-    //   if (!args.author && !args.genre) {
-    //     return books
-    //   }
-    //   if (!args.genre) {
-    //     return books.filter((book) => book.author === args.author)
-    //   }
-    //   if (!args.author) {
-    //     return books.filter((book) => book.genres.includes(args.genre))
-    //   }
-    //   if (args.author && args.genre) {
-    //     return books.filter(
-    //       (book) =>
-    //         book.author === args.author && book.genres.includes(args.genre)
-    //     )
-    //   }
-    // },
     allAuthors: async (root, args) => {
       return Author.find({})
     },
   },
-  // Author: {
-  //   bookCount: ({ name }) =>
-  //     books.filter((book) => book.author === name).length,
-  // },
+  Author: {
+    bookCount: async ({ _id: id }) => {
+      return Book.collection.countDocuments({ author: id })
+    },
+  },
   Mutation: {
     addBook: async (root, args) => {
       const book = new Book({ ...args })
@@ -106,17 +101,18 @@ const resolvers = {
       }
       return author
     },
-    // editAuthor: (root, args) => {
-    //   const author = authors.find((author) => author.name === args.name)
-    //   if (!author) {
-    //     return null
-    //   }
-    //   const updatedAuthor = { ...author, born: args.setBornTo }
-    //   authors = authors.map((author) =>
-    //     author.name === args.name ? updatedAuthor : author
-    //   )
-    //   return updatedAuthor
-    // },
+    editAuthor: async (root, args) => {
+      const author = await Author.findOne({ name: args.name })
+      author.born = args.setBornTo
+      try {
+        await author.save()
+      } catch (error) {
+        throw new UserInputError(error.message, {
+          invalidArgs: args,
+        })
+      }
+      return author
+    },
   },
 }
 
